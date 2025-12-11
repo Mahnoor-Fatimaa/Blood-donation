@@ -1,16 +1,16 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Replace YOUR_PASSWORD with the password you set during PostgreSQL installation
-DATABASE_URL = "postgresql://postgres:mypassword123@localhost:5432/blood_donation"
+# Replace password and database name if needed
+DATABASE_URL = "postgresql://postgres:mypassword123@127.0.0.1:5432/blood_donation"
 
-# Create SQLAlchemy engine
+# Create engine
 engine = create_engine(DATABASE_URL)
 
-# Create a configured "Session" class
+# Session maker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for all ORM models
+# Base class for models
 Base = declarative_base()
 
 # Dependency to get DB session
@@ -20,3 +20,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Automatically create tables
+Base.metadata.create_all(bind=engine)

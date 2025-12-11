@@ -1,4 +1,13 @@
-const API_URL = "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// Add error handling helper
+async function handleResponse(response) {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
 
 export async function registerUser(data) {
   const res = await fetch(`${API_URL}/auth/signup`, {
@@ -6,7 +15,7 @@ export async function registerUser(data) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function loginUser(data) {
@@ -15,16 +24,14 @@ export async function loginUser(data) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function getProfile(token) {
   const res = await fetch(`${API_URL}/auth/profile`, {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { "Authorization": `Bearer ${token}` }
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function updateProfile(token, data) {
@@ -36,7 +43,7 @@ export async function updateProfile(token, data) {
     },
     body: JSON.stringify(data)
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function getHistory(token, params = {}) {
@@ -48,20 +55,16 @@ export async function getHistory(token, params = {}) {
   });
 
   const res = await fetch(url.toString(), {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { "Authorization": `Bearer ${token}` }
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function getDonors(token) {
   const res = await fetch(`${API_URL}/donor/all`, {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { "Authorization": `Bearer ${token}` }
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function createDonorProfile(token, data) {
@@ -73,11 +76,11 @@ export async function createDonorProfile(token, data) {
     },
     body: JSON.stringify(data)
   });
-  return res.json();
+  return handleResponse(res);
 }
 
-export async function createRecipientRequest(token, userId, data) {
-  const res = await fetch(`${API_URL}/recipient/?user_id=${userId}`, {
+export async function createRecipientRequest(token, data) {
+  const res = await fetch(`${API_URL}/recipient/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -85,14 +88,12 @@ export async function createRecipientRequest(token, userId, data) {
     },
     body: JSON.stringify(data)
   });
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function getMatches(token, requestId) {
   const res = await fetch(`${API_URL}/recipient/matches/${requestId}`, {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { "Authorization": `Bearer ${token}` }
   });
-  return res.json();
+  return handleResponse(res);
 }
