@@ -3,85 +3,87 @@ import { motion } from "framer-motion";
 import { loginUser } from "../services/api";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
-import Button from "../components/ui/Button";
 
-export default function LoginPage() {
+export default function LoginPage({ onSwitchToRegister, onLoginSuccess }) {
+  // Initialize with empty strings
   const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const result = await loginUser(form);
-    localStorage.setItem("token", result.access_token);
-    window.location.href = "/";
+    setError("");
+    setLoading(true);
+    
+    try {
+      const result = await loginUser(form);
+      console.log("Login Success:", result);
+      
+      localStorage.setItem("token", result.access_token);
+      
+      if (onLoginSuccess) {
+        onLoginSuccess(result.access_token);
+      } else {
+        window.location.reload();
+      }
+
+    } catch (err) {
+      console.error("Login Failed:", err);
+      setError("Invalid email or password");
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-brand-light via-white to-slate-100 px-4">
-      <div className="pointer-events-none absolute -left-40 -top-40 h-80 w-80 rounded-full bg-brand-light blur-3xl" />
-      <div className="pointer-events-none absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-red-100 blur-3xl" />
-
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <Card className="space-y-6 rounded-3xl">
-          <div className="space-y-2 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-dark">
-              Welcome back
-            </p>
-            <h1 className="text-2xl font-semibold text-slate-950">
-              Log in to Blood Donation System
-            </h1>
-            <p className="text-xs text-slate-500">
-              Access your dashboard, manage requests, and stay connected with donors.
-            </p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+      <div className="w-full max-w-md">
+        <Card className="rounded-3xl p-8 shadow-xl">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Welcome Back</h1>
+            <p className="text-sm text-slate-500">Please enter your details.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* FIX: added autoComplete="off" */}
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <Input
-              label="Email address"
+              label="Email"
               type="email"
-              placeholder="you@example.com"
-              autoComplete="email"
+              placeholder="user@example.com"
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
+              required
+              // FIX: This forces browsers to ignore saved emails
+              autoComplete="off" 
+              name="email_new_login" // Random name helps trick Chrome
             />
-
             <Input
               label="Password"
               type="password"
-              placeholder="••••••••"
-              autoComplete="current-password"
+              placeholder="••••••"
               value={form.password}
               onChange={e => setForm({ ...form, password: e.target.value })}
+              required
+              // FIX: "new-password" prevents autofill on login forms
+              autoComplete="new-password"
+              name="password_new_login"
             />
 
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="h-3 w-3 rounded border-slate-300" />
-                <span>Remember me</span>
-              </label>
-              <button
-                type="button"
-                className="font-medium text-brand-red hover:text-brand-dark"
-              >
-                Forgot password?
-              </button>
-            </div>
+            {error && <p className="text-center text-sm text-red-500">{error}</p>}
 
-            <Button type="submit" className="w-full" size="lg">
-              Continue
-            </Button>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
           </form>
 
-          <p className="text-center text-xs text-slate-500">
-            Don&apos;t have an account?{" "}
-            <span className="font-semibold text-brand-red">Create one</span>
-          </p>
+          <div className="mt-4 text-center text-xs text-slate-500">
+            No account? <button type="button" onClick={onSwitchToRegister} className="font-bold text-red-600 hover:underline">Register</button>
+          </div>
         </Card>
-      </motion.div>
+      </div>
     </div>
   );
 }

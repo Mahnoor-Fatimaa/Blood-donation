@@ -4,10 +4,10 @@ const navItems = [
   { label: "Requests", icon: "📨" },
   { label: "Blood Stock", icon: "📦" },
   { label: "Analytics", icon: "📊" },
-  { label: "Settings", icon: "⚙️" }
+  { label: "Settings", icon: "🚪" } // Changed icon to represent exit/logout
 ];
 
-export default function Sidebar({ active = "Dashboard", onSelect = () => {} }) {
+export default function Sidebar({ active = "Dashboard", onSelect = () => {}, onLogout }) {
   return (
     <aside className="hidden min-h-screen w-64 flex-col border-r border-slate-100 bg-white px-6 py-8 lg:flex">
       <div className="mb-10 flex items-center gap-2">
@@ -19,6 +19,20 @@ export default function Sidebar({ active = "Dashboard", onSelect = () => {} }) {
       </div>
       <nav className="flex-1 space-y-2">
         {navItems.map(item => {
+          // SPECIAL LOGIC: If the item is "Settings", treat it as a Logout button
+          if (item.label === "Settings") {
+             return (
+               <button
+                 key={item.label}
+                 onClick={onLogout} // <--- This fires the logout function
+                 className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+               >
+                 <span className="text-lg">{item.icon}</span>
+                 Logout
+               </button>
+             );
+          }
+
           const isActive = item.label === active;
           return (
             <button
@@ -43,4 +57,3 @@ export default function Sidebar({ active = "Dashboard", onSelect = () => {} }) {
     </aside>
   );
 }
-

@@ -1,41 +1,39 @@
 from datetime import date
 from typing import Optional, List
+from pydantic import BaseModel, EmailStr
 
-from pydantic import BaseModel, EmailStr, Field
+# --- Token Schemas ---
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
+class TokenData(BaseModel):
+    id: Optional[int] = None
 
-# ---------- AUTH & USER SCHEMAS ----------
-class UserSignup(BaseModel):
-    full_name: str
+# --- User Schemas ---
+class UserBase(BaseModel):
     email: EmailStr
-    password: str
-    role: str = Field(..., pattern="^(donor|recipient)$")  # Only "donor" or "recipient"
+    full_name: str
+    role: str = "donor"  # "donor" or "recipient"
     phone_number: Optional[str] = None
     age: Optional[int] = None
     blood_group: Optional[str] = None
     city: Optional[str] = None
     last_donation_date: Optional[date] = None
 
+class UserSignup(UserBase):
+    password: str
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-
-class UserProfile(BaseModel):
+class UserProfile(UserBase):
     id: int
-    full_name: str
-    email: EmailStr
-    role: str
-    phone_number: Optional[str] = None
-    age: Optional[int] = None
-    blood_group: Optional[str] = None
-    city: Optional[str] = None
-    last_donation_date: Optional[date] = None
+    is_active: bool = True  # Added default
 
     class Config:
-        orm_mode = True
-
+        from_attributes = True  # <--- FIX: Renamed from orm_mode
 
 class UserProfileUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -45,38 +43,30 @@ class UserProfileUpdate(BaseModel):
     city: Optional[str] = None
     last_donation_date: Optional[date] = None
 
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-# ---------- HISTORY SCHEMAS ----------
-class HistoryEntry(BaseModel):
-    id: int
-    entry_type: str
-    date: date
-    hospital: str
-    blood_group: str
-
-    class Config:
-        orm_mode = True
-
-
-class HistoryResponse(BaseModel):
-    donations: List[HistoryEntry]
-    received: List[HistoryEntry]
-
-
-# ---------- DONOR LIST SCHEMA ----------
+# --- Donor Schemas ---
 class DonorListItem(BaseModel):
     id: int
     full_name: str
-    email: EmailStr
+    email: str
     blood_group: str
     city: str
     age: int
     last_donation_date: Optional[date] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # <--- FIX: Renamed from orm_mode
+
+# --- History Schemas ---
+class HistoryEntry(BaseModel):
+    id: int
+    hospital: str
+    blood_group: str
+    date: date
+    entry_type: str
+
+    class Config:
+        from_attributes = True  # <--- FIX: Renamed from orm_mode
+
+class HistoryResponse(BaseModel):
+    donations: List[HistoryEntry]
+    received: List[HistoryEntry]

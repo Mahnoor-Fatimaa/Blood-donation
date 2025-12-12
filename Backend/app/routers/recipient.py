@@ -1,57 +1,50 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import RecipientRequest, DonorProfile, User as UserModel
 from app.routers.auth_routes import get_current_db_user
-from app.matching import find_matching_donors
+
+# Import matching logic safely
+try:
+    from app.matching import find_matching_donors
+except ImportError:
+    find_matching_donors = None
 
 router = APIRouter()
 
+# --- Schema for Incoming Request ---
+class RecipientRequestCreate(BaseModel):
+    blood_group: str
+    city: str
+    urgency: str = "normal"
 
 @router.get("/me")
 async def read_my_profile(current_user: UserModel = Depends(get_current_db_user)):
-    """Get current recipient profile."""
     return {"message": "Recipient profile data", "user": {"id": current_user.id, "email": current_user.email}}
 
-
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_request(
-    data: dict,
+    request_data: RecipientRequestCreate,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_db_user)
 ):
-    """Create a new blood request."""
-    if current_user.role != "recipient":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only users with role 'recipient' can create requests."
-        )
+    # REMOVED: The check that blocked donors from requesting.
+    # Now, ANY logged-in user can create a request.
     
-    blood_group = data.get("blood_group")
-    city = data.get("city")
-    urgency = data.get("urgency", "normal")
-    
-    if not blood_group or not city:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="blood_group and city are required."
-        )
-    
-    request = RecipientRequest(
+    new_request = RecipientRequest(
         user_id=current_user.id,
-        blood_group=blood_group,
-        city=city,
-        urgency=urgency
+        blood_group=request_data.blood_group,
+        city=request_data.city,
+        urgency=request_data.urgency
     )
     
-    db.add(request)
+    db.add(new_request)
     db.commit()
-    db.refresh(request)
+    db.refresh(new_request)
     
-    return request
-
+    return new_request
 
 @router.get("/matches/{request_id}")
 async def get_matches(
@@ -59,22 +52,15 @@ async def get_matches(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_db_user)
 ):
-    """Find matching donors for a request."""
-    request = db.query(RecipientRequest).filter(
-        RecipientRequest.id == request_id
-    ).first()
+    request = db.query(RecipientRequest).filter(RecipientRequest.id == request_id).first()
     
     if not request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Request not found"
-        )
+        raise HTTPException(status_code=404, detail="Request not found")
     
-    # Get all donors
-    donors = db.query(DonorProfile).all()
-    
-    # Find matches
-    matches = find_matching_donors(donors, request.blood_group, request.city)
+    matches = []
+    if find_matching_donors:
+        donors = db.query(DonorProfile).join(UserModel).all()
+        matches = find_matching_donors(donors, request.blood_group, request.city)
     
     return {
         "request_id": request_id,
@@ -82,12 +68,11 @@ async def get_matches(
         "city": request.city,
         "matches": [
             {
-                "id": donor.id,
-                "name": donor.user.full_name,
-                "blood_group": donor.blood_group,
-                "city": donor.city,
-                "last_donation_date": donor.last_donation_date
-            }
-            for donor in matches
+                "id": d.id,
+                "name": d.user.full_name,
+                "blood_group": d.blood_group,
+                "city": d.city,
+                "last_donation_date": d.last_donation_date
+            } for d in matches
         ]
     }

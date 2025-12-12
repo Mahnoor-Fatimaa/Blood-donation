@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth_routes, recipient, donor
+# 1. Added stats and history to the imports
+from app.routers import auth_routes, recipient, donor, stats, history
 
 app = FastAPI(title="Blood Donation System API")
 
@@ -22,6 +23,10 @@ app.add_middleware(
 app.include_router(auth_routes.router, prefix="/auth", tags=["auth"])
 app.include_router(recipient.router, prefix="/recipient", tags=["recipients"])
 app.include_router(donor.router, prefix="/donor", tags=["donors"])
+
+# 2. Included the new routers here
+app.include_router(stats.router, prefix="/stats", tags=["stats"])
+app.include_router(history.router, prefix="/history", tags=["history"])
 
 @app.get("/")
 def root():

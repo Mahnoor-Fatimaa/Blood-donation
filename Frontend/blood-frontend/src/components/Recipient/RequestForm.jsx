@@ -12,13 +12,31 @@ export default function RequestForm() {
     urgency: "normal"
   });
 
+  // Updated handleSubmit function
   async function handleSubmit(e) {
     e.preventDefault();
     const token = localStorage.getItem("token");
-    const userId = 1; // fixed for demo, update after authentication
-    const result = await createRecipientRequest(token, userId, form);
-    console.log(result);
-    alert("Request posted");
+
+    // 1. Check if token exists
+    if (!token) {
+      alert("You must be logged in to submit a request.");
+      return;
+    }
+
+    // 2. Try to submit the request
+    try {
+      // The backend extracts the userId automatically from the token
+      const result = await createRecipientRequest(token, form);
+      console.log(result);
+      alert("Request posted successfully!");
+      
+      // Optional: clear form after success
+      // setForm({ blood_group: "", city: "", urgency: "normal" }); 
+      
+    } catch (err) {
+      console.error("Failed to post request:", err);
+      alert("Failed to post request. Check console for details.");
+    }
   }
 
   return (
