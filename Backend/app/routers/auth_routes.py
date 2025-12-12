@@ -1,171 +1,142 @@
-from datetime import timedelta, date
-from typing import Optional, List
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from datetime import timedelta
+from pydantic import BaseModel
+from typing import Optional
 
-from app import auth as auth_utils
 from app.database import get_db
-from app.models import User as UserModel, DonationHistory
-from app.schemas import (
-    UserSignup,
-    UserLogin,
-    UserProfile,
-    UserProfileUpdate,
-    Token,
-    HistoryResponse,
-    HistoryEntry,
+from app.models import User as UserModel
+from app.auth import (
+    verify_password, 
+    hash_password, 
+    create_access_token, 
+    get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# --- SCHEMAS ---
+class UserCreate(BaseModel):
+    full_name: str
+    email: str
+    password: str
+    role: str = "donor"
+    phone_number: str = None
+    age: int = None
+    blood_group: str = None
+    city: str = None
 
+# FIX: New Schema for Updates (all fields optional)
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    age: Optional[int] = None
+    blood_group: Optional[str] = None
+    city: Optional[str] = None
 
-# Lightweight current user model used by other routers
-from pydantic import BaseModel
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: dict
 
+# --- 1. SIGNUP ---
+@router.post("/signup", response_model=Token, status_code=status.HTTP_201_CREATED)
+def signup(user: UserCreate, db: Session = Depends(get_db)):
+    if db.query(UserModel).filter(UserModel.email == user.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
 
-class User(BaseModel):
-  id: int
-  email: str
-
-
-def _get_user_from_token(token: str, db: Session) -> UserModel:
-  payload = auth_utils.decode_access_token(token)
-  if not payload:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid or expired token",
+    hashed_pw = hash_password(user.password)
+    new_user = UserModel(
+        full_name=user.full_name,
+        email=user.email,
+        password=hashed_pw,
+        role=user.role,
+        phone_number=user.phone_number,
+        age=user.age,
+        blood_group=user.blood_group,
+        city=user.city
     )
-  user_id = payload.get("sub")
-  if user_id is None:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid token payload",
-    )
-  user = db.query(UserModel).filter(UserModel.id == user_id).first()
-  if not user:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="User not found",
-    )
-  return user
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    access_token = create_access_token(data={"sub": new_user.email})
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": {"id": new_user.id, "email": new_user.email, "full_name": new_user.full_name, "role": new_user.role}
+    }
 
-
-async def get_current_user(
-  token: str = Depends(oauth2_scheme),
-  db: Session = Depends(get_db),
-) -> User:
-  user = _get_user_from_token(token, db)
-  return User(id=user.id, email=user.email)
-
-
-def get_current_db_user(
-  token: str = Depends(oauth2_scheme),
-  db: Session = Depends(get_db),
-) -> UserModel:
-  return _get_user_from_token(token, db)
-
-
-@router.post("/signup", response_model=UserProfile, status_code=status.HTTP_201_CREATED)
-def signup(user_in: UserSignup, db: Session = Depends(get_db)):
-  existing = db.query(UserModel).filter(UserModel.email == user_in.email).first()
-  if existing:
-    raise HTTPException(
-      status_code=status.HTTP_400_BAD_REQUEST,
-      detail="Email already registered",
-    )
-
-  hashed_password = auth_utils.hash_password(user_in.password)
-
-  db_user = UserModel(
-    full_name=user_in.full_name,
-    email=user_in.email,
-    password=hashed_password,
-    role=user_in.role,
-    phone_number=user_in.phone_number,
-    age=user_in.age,
-    blood_group=user_in.blood_group,
-    city=user_in.city,
-    last_donation_date=user_in.last_donation_date,
-  )
-  db.add(db_user)
-  db.commit()
-  db.refresh(db_user)
-
-  return db_user
-
-
+# --- 2. LOGIN ---
 @router.post("/login", response_model=Token)
-def login(user_in: UserLogin, db: Session = Depends(get_db)):
-  user = db.query(UserModel).filter(UserModel.email == user_in.email).first()
-  if not user:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid email or password",
+def login(form_data: dict, db: Session = Depends(get_db)):
+    email = form_data.get("email")
+    password = form_data.get("password")
+
+    user = db.query(UserModel).filter(UserModel.email == email).first()
+    
+    if not user or not verify_password(password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": {"id": user.id, "email": user.email, "full_name": user.full_name, "role": user.role}
+    }
 
-  if not auth_utils.verify_password(user_in.password, user.password):
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid email or password",
-    )
+# --- 3. GET PROFILE ---
+@router.get("/profile")
+def read_users_me(current_user: UserModel = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "role": current_user.role,
+        "phone_number": current_user.phone_number,
+        "age": current_user.age,
+        "blood_group": current_user.blood_group,
+        "city": current_user.city
+    }
 
-  access_token_expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
-  access_token = auth_utils.create_access_token(
-    data={"sub": user.id}, expires_delta=access_token_expires
-  )
-
-  return Token(access_token=access_token, token_type="bearer")
-
-
-@router.get("/profile", response_model=UserProfile)
-def get_profile(current_user: UserModel = Depends(get_current_db_user)):
-  return current_user
-
-
-@router.put("/profile/update", response_model=UserProfile)
+# --- 4. UPDATE PROFILE (FIX ADDED HERE) ---
+@router.put("/profile/update")
 def update_profile(
-  update_in: UserProfileUpdate,
-  db: Session = Depends(get_db),
-  current_user: UserModel = Depends(get_current_db_user),
+    user_data: UserUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: UserModel = Depends(get_current_user)
 ):
-  for field, value in update_in.dict(exclude_unset=True).items():
-    setattr(current_user, field, value)
-
-  db.add(current_user)
-  db.commit()
-  db.refresh(current_user)
-  return current_user
-
-
-@router.get("/history", response_model=HistoryResponse)
-def get_history(
-  db: Session = Depends(get_db),
-  current_user: UserModel = Depends(get_current_db_user),
-  start_date: Optional[date] = None,
-  end_date: Optional[date] = None,
-  entry_type: Optional[str] = None,  # "donation" or "received"
-):
-  query = db.query(DonationHistory).filter(DonationHistory.user_id == current_user.id)
-
-  if entry_type in {"donation", "received"}:
-    query = query.filter(DonationHistory.entry_type == entry_type)
-
-  if start_date:
-    query = query.filter(DonationHistory.date >= start_date)
-  if end_date:
-    query = query.filter(DonationHistory.date <= end_date)
-
-  entries: List[DonationHistory] = query.order_by(DonationHistory.date.desc()).all()
-
-  donation_entries = [
-    HistoryEntry.from_orm(e) for e in entries if e.entry_type == "donation"
-  ]
-  received_entries = [
-    HistoryEntry.from_orm(e) for e in entries if e.entry_type == "received"
-  ]
-
-  return HistoryResponse(donations=donation_entries, received=received_entries)
+    # Only update fields that are sent
+    if user_data.full_name: 
+        current_user.full_name = user_data.full_name
+    if user_data.phone_number: 
+        current_user.phone_number = user_data.phone_number
+    if user_data.age: 
+        current_user.age = user_data.age
+    if user_data.blood_group: 
+        current_user.blood_group = user_data.blood_group
+    if user_data.city: 
+        current_user.city = user_data.city
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "phone_number": current_user.phone_number,
+        "age": current_user.age,
+        "blood_group": current_user.blood_group,
+        "city": current_user.city
+    }

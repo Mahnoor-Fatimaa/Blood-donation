@@ -5,14 +5,16 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models import User, DonorProfile, RecipientRequest, DonationHistory
-from app.routers.auth_routes import get_current_db_user
+# FIX: Import correctly from app.auth
+from app.auth import get_current_user
 
 router = APIRouter()
 
 @router.get("/dashboard")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_db_user)
+    # FIX: Use get_current_user
+    current_user: User = Depends(get_current_user)
 ):
     # 1. Total Donors (Count donor profiles)
     total_donors = db.query(DonorProfile).count()
@@ -28,22 +30,19 @@ def get_dashboard_stats(
     ).count()
 
     # 4. Blood Stock Levels (Count of Donors by Blood Group)
-    # Since we don't have a 'BloodBank' inventory table, we count *available donors* as our stock.
     stock_query = db.query(
         DonorProfile.blood_group, func.count(DonorProfile.id)
     ).group_by(DonorProfile.blood_group).all()
     
-    # Convert query result to a nice list
-    # e.g., [{"group": "A+", "units": 12}, ...]
     stock_levels = [{"group": row[0], "units": row[1]} for row in stock_query]
 
     # 5. Recent Activity Feed (Last 5 actions)
     recent_activity = db.query(DonationHistory).order_by(DonationHistory.date.desc()).limit(5).all()
     formatted_activity = [
         {
-            "donor": entry.user.full_name, # Access User name via relationship
+            "donor": entry.user.full_name if entry.user else "Unknown",
             "group": entry.blood_group,
-            "city": entry.hospital, # Using hospital field as location
+            "city": entry.hospital, 
             "time": entry.date.strftime("%Y-%m-%d")
         }
         for entry in recent_activity

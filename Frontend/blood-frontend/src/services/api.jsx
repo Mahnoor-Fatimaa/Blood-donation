@@ -96,3 +96,14 @@ export async function logDonation(token, data) {
   });
   return handleResponse(res);
 }
+
+
+// ... existing code ...
+
+// Add this function
+export async function getAllRequests(token) {
+  const res = await fetch(`${API_URL}/recipient/all`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return handleResponse(res);
+}

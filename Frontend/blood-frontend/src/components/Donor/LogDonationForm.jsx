@@ -3,12 +3,12 @@ import { logDonation } from "../../services/api";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
 
-export default function LogDonationForm({ onClose }) {
+export default function LogDonationForm({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     hospital: "",
     blood_group: "",
-    date: new Date().toISOString().split('T')[0], // Today's date
+    date: new Date().toISOString().split('T')[0],
     units: 1
   });
 
@@ -19,11 +19,11 @@ export default function LogDonationForm({ onClose }) {
 
     try {
       await logDonation(token, form);
-      alert("Donation logged successfully! 🎉");
-      window.location.reload(); // Reload to update the stats on dashboard
+      // FIX: No alert, no reload. Just call the success handler.
+      if (onSuccess) onSuccess(); 
     } catch (err) {
       console.error(err);
-      alert("Failed to save donation.");
+      alert("Failed to save donation."); // Keep error alert for now or handle gracefully
       setLoading(false);
     }
   }

@@ -4,9 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DonorProfile, User as UserModel
-from app.routers.auth_routes import get_current_db_user
-from app.schemas import DonorListItem
+from app.models import DonorProfile, User
+from app.auth import get_current_user
 
 router = APIRouter()
 
@@ -14,14 +13,9 @@ router = APIRouter()
 def upsert_donor_profile(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_db_user),
+    current_user: User = Depends(get_current_user),
 ):
-    # REMOVED: The check that blocked recipients from becoming donors.
-    # Now, ANY user can register as a donor.
-
-    existing = (
-        db.query(DonorProfile).filter(DonorProfile.user_id == current_user.id).first()
-    )
+    existing = db.query(DonorProfile).filter(DonorProfile.user_id == current_user.id).first()
 
     blood_group = data.get("blood_group")
     city = data.get("city")
@@ -33,7 +27,7 @@ def upsert_donor_profile(
         try:
             last_donation_date = date.fromisoformat(last_donation_date_raw)
         except ValueError:
-            pass # Handle invalid date format gracefully
+            pass 
 
     if not blood_group or not city or age is None:
         raise HTTPException(
@@ -63,10 +57,20 @@ def upsert_donor_profile(
     db.refresh(profile)
     return profile
 
-@router.get("/all", response_model=List[DonorListItem])
+@router.get("/all")
 def list_donors(db: Session = Depends(get_db)):
-    profiles = db.query(DonorProfile).join(UserModel).all()
-    items = []
-    for profile in profiles:
-        items.append(profile)
-    return items
+    profiles = db.query(DonorProfile).join(User).all()
+    
+    return [
+        {
+            "id": p.id,
+            "full_name": p.user.full_name,
+            "email": p.user.email,
+            "phone_number": p.user.phone_number, # <--- FIX: Added Phone Number
+            "blood_group": p.blood_group,
+            "city": p.city,
+            "age": p.age,
+            "last_donation_date": p.last_donation_date.strftime("%Y-%m-%d") if p.last_donation_date else "Never"
+        }
+        for p in profiles
+    ]

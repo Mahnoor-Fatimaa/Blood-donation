@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from datetime import date
 from app.database import get_db
 from app.models import DonationHistory, User
-from app.routers.auth_routes import get_current_db_user
+# FIX: Import correctly
+from app.auth import get_current_user
 
 router = APIRouter()
 
@@ -18,7 +19,8 @@ class HistoryCreate(BaseModel):
 def log_history(
     data: HistoryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_db_user)
+    # FIX: Use get_current_user
+    current_user: User = Depends(get_current_user)
 ):
     entry = DonationHistory(
         user_id=current_user.id,

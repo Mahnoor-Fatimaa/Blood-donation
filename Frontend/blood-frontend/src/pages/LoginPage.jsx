@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { loginUser } from "../services/api";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
 
 export default function LoginPage({ onSwitchToRegister, onLoginSuccess }) {
-  // Initialize with empty strings
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,11 +15,14 @@ export default function LoginPage({ onSwitchToRegister, onLoginSuccess }) {
     setLoading(true);
     
     try {
+      // 1. Call Real Database Endpoint
       const result = await loginUser(form);
       console.log("Login Success:", result);
       
+      // 2. Save Token
       localStorage.setItem("token", result.access_token);
       
+      // 3. Notify App to Switch View
       if (onLoginSuccess) {
         onLoginSuccess(result.access_token);
       } else {
@@ -29,8 +31,9 @@ export default function LoginPage({ onSwitchToRegister, onLoginSuccess }) {
 
     } catch (err) {
       console.error("Login Failed:", err);
-      setError("Invalid email or password");
-      setLoading(false);
+      setError("Invalid email or password. Please try again.");
+    } finally {
+        setLoading(false);
     }
   }
 
@@ -40,21 +43,18 @@ export default function LoginPage({ onSwitchToRegister, onLoginSuccess }) {
         <Card className="rounded-3xl p-8 shadow-xl">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-bold text-slate-900">Welcome Back</h1>
-            <p className="text-sm text-slate-500">Please enter your details.</p>
+            <p className="text-sm text-slate-500">Please enter your details to sign in.</p>
           </div>
 
-          {/* FIX: added autoComplete="off" */}
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <Input
               label="Email"
               type="email"
-              placeholder="user@example.com"
+              placeholder="you@example.com"
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
               required
-              // FIX: This forces browsers to ignore saved emails
-              autoComplete="off" 
-              name="email_new_login" // Random name helps trick Chrome
+              autoComplete="off"
             />
             <Input
               label="Password"
@@ -63,24 +63,18 @@ export default function LoginPage({ onSwitchToRegister, onLoginSuccess }) {
               value={form.password}
               onChange={e => setForm({ ...form, password: e.target.value })}
               required
-              // FIX: "new-password" prevents autofill on login forms
               autoComplete="new-password"
-              name="password_new_login"
             />
 
-            {error && <p className="text-center text-sm text-red-500">{error}</p>}
+            {error && <p className="text-center text-sm text-red-500 bg-red-50 p-2 rounded">{error}</p>}
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
-            </button>
+            </Button>
           </form>
 
           <div className="mt-4 text-center text-xs text-slate-500">
-            No account? <button type="button" onClick={onSwitchToRegister} className="font-bold text-red-600 hover:underline">Register</button>
+            No account? <button type="button" onClick={onSwitchToRegister} className="font-bold text-brand-red hover:underline">Register Now</button>
           </div>
         </Card>
       </div>
