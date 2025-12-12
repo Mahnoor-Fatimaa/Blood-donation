@@ -1,4 +1,5 @@
-const API_URL = "http://127.0.0.1:8000";
+// Paste your new Localtunnel URL here (No trailing slash)
+const API_URL = "https://funny-cat-45.loca.lt";
 
 async function handleResponse(res) {
   if (!res.ok) {

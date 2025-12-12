@@ -7,9 +7,10 @@ app = FastAPI(title="Blood Donation System API")
 
 # --- CORS CONFIGURATION ---
 origins = [
-    "http://localhost:5173",      # React Localhost
-    "http://127.0.0.1:5173",      # React IP
-    "http://localhost:3000",      # Alternate React Port
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://your-vercel-app.vercel.app",
+    "https://funny-cat-45.loca.lt" # Add the Localtunnel URL just in case
 ]
 
 app.add_middleware(
