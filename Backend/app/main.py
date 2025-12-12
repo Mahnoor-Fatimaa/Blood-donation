@@ -9,7 +9,7 @@ app = FastAPI(title="Blood Donation System API")
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://your-vercel-app.vercel.app",
+    "https://blood-donation-oc81cwdga-mahnoor2970-3221s-projects.vercel.app"
     "https://funny-cat-45.loca.lt" # Add the Localtunnel URL just in case
 ]
 

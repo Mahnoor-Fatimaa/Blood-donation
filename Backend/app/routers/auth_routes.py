@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional # Required for UserUpdate
 
 from app.database import get_db
 from app.models import User as UserModel
@@ -22,6 +22,7 @@ class UserCreate(BaseModel):
     email: str
     password: str
     role: str = "donor"
+    # These fields correctly accept None/null due to the structure
     phone_number: str = None
     age: int = None
     blood_group: str = None

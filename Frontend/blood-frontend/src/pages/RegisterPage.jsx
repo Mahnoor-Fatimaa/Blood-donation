@@ -11,26 +11,43 @@ export default function RegisterPage({ onSwitchToLogin }) {
     password: "",
     phone_number: "",
     role: "donor",
-    age: "",
+    age: "", 
     blood_group: "O+",
     city: ""
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); // Added local error state
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    const payload = { ...form };
-    if (payload.age) payload.age = parseInt(payload.age);
-    else payload.age = null;
+    setError(null);
+    
+    // --- FIX: Clean Data for Backend ---
+    const payload = { 
+        ...form,
+        // Convert empty strings to null for optional string fields
+        phone_number: form.phone_number || null,
+        city: form.city || null,
+        blood_group: form.blood_group || null
+    };
+
+    // Convert Age to Integer or null
+    if (payload.age) {
+        payload.age = parseInt(payload.age);
+    } else {
+        payload.age = null; // Send null if age is empty
+    }
+    // ----------------------------------
 
     try {
       await registerUser(payload);
       alert("Registration Successful! Please log in.");
       onSwitchToLogin();
     } catch (err) {
-      console.error(err);
-      alert("Registration failed. Email might be taken.");
+      console.error("Registration Error:", err);
+      // Display error from backend if available
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
         setLoading(false);
     }
@@ -48,12 +65,12 @@ export default function RegisterPage({ onSwitchToLogin }) {
           
           <div className="grid gap-4 md:grid-cols-2">
             <Input label="Password" type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
-            <Input label="Phone" value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value})} />
+            <Input label="Phone (Optional)" value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value})} />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-             <Input label="Age" type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} />
-             <Input label="City" value={form.city} onChange={e => setForm({...form, city: e.target.value})} />
+             <Input label="Age (Optional)" type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} />
+             <Input label="City (Optional)" value={form.city} onChange={e => setForm({...form, city: e.target.value})} />
           </div>
 
           <label className="flex flex-col text-sm font-medium text-slate-600">
@@ -63,6 +80,8 @@ export default function RegisterPage({ onSwitchToLogin }) {
             </select>
           </label>
 
+          {error && <p className="text-center text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}
+          
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating Account..." : "Register"}
           </Button>
