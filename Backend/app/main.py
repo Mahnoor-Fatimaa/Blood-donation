@@ -6,19 +6,27 @@ from app.routers import auth_routes, recipient, donor, stats, history
 app = FastAPI(title="Blood Donation System API")
 
 # --- CORS CONFIGURATION ---
+# IMPORTANT: This list must contain the exact domains of your frontend applications.
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://blood-donation-oc81cwdga-mahnoor2970-3221s-projects.vercel.app"
-    "https://funny-cat-45.loca.lt" # Add the Localtunnel URL just in case
+    
+    # 1. Vercel Production Link (Your friend's link)
+    "https://blood-donation-oc81cwdga-mahnoor2970-3221s-projects.vercel.app", 
+    
+    # 2. Ngrok Current Tunnel Link (The public API address)
+    "https://unvivid-charles-hematological.ngrok-free.dev",
+    
+    # (Optional: Old link, you can remove this after confirming the new one works)
+    "https://funny-cat-45.loca.lt" 
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,        # Allow these origins
+    allow_origins=origins,       # Allow these origins
     allow_credentials=True,
-    allow_methods=["*"],          # Allow ALL methods (GET, POST, PUT, DELETE)
-    allow_headers=["*"],          # Allow ALL headers
+    allow_methods=["*"],         # Allow ALL methods (GET, POST, PUT, DELETE)
+    allow_headers=["*"],         # Allow ALL headers (Authorization, Content-Type, etc.)
 )
 
 # --- REGISTER ROUTERS ---
