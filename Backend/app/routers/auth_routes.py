@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from pydantic import BaseModel
-from typing import Optional # Required for UserUpdate
+from typing import Optional # <--- CRITICAL
 
 from app.database import get_db
 from app.models import User as UserModel
@@ -22,13 +22,12 @@ class UserCreate(BaseModel):
     email: str
     password: str
     role: str = "donor"
-    # These fields correctly accept None/null due to the structure
-    phone_number: str = None
-    age: int = None
-    blood_group: str = None
-    city: str = None
+    # FIX: Use Optional explicitly for all non-required fields
+    phone_number: Optional[str] = None
+    age: Optional[int] = None
+    blood_group: Optional[str] = None
+    city: Optional[str] = None
 
-# FIX: New Schema for Updates (all fields optional)
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
@@ -53,6 +52,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         password=hashed_pw,
         role=user.role,
+        # Pydantic handles null values correctly now due to Optional[]
         phone_number=user.phone_number,
         age=user.age,
         blood_group=user.blood_group,
@@ -110,14 +110,13 @@ def read_users_me(current_user: UserModel = Depends(get_current_user)):
         "city": current_user.city
     }
 
-# --- 4. UPDATE PROFILE (FIX ADDED HERE) ---
+# --- 4. UPDATE PROFILE ---
 @router.put("/profile/update")
 def update_profile(
     user_data: UserUpdate, 
     db: Session = Depends(get_db), 
     current_user: UserModel = Depends(get_current_user)
 ):
-    # Only update fields that are sent
     if user_data.full_name: 
         current_user.full_name = user_data.full_name
     if user_data.phone_number: 
